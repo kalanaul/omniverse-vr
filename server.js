@@ -4,7 +4,8 @@ const path = require('path');
 const cors = require('cors'); // Import cors
 const app = express();
 const PORT = 3000;
-
+const { Pool } = require('pg');
+require('dotenv').config(); 
 
 //const indexPath = path.join(__dirname, 'public', 'index.html');
 const indexPath = "C:\\Kalana\\-gemini-kit-106.3\\_build\\windows-x86_64\\release\\extscache\\omni.services.streamclient.webrtc-1.3.8\\web\\index.html";
@@ -17,6 +18,38 @@ app.use(cors({
     allowedHeaders: ['Content-Type']
 }));
 
+const pool = new Pool({
+    host: process.env.DB_HOST,
+    port: process.env.DB_PORT,
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_NAME,
+});
+
+app.get('/get_twin_name', async (req, res) => {
+    const { twinversion_id } = req.query; // Get the twin version ID from the query parameters
+
+    if (!twinversion_id) {
+        return res.status(400).json({ error: 'Missing twinversion_id in the request' });
+    }
+
+    try {
+        // Query the database for the twin name associated with the twin version ID
+        const query = 'SELECT twin_name FROM twinnames WHERE twin_id = $1';
+        const result = await pool.query(query, [twinversion_id]);
+
+        if (result.rows.length === 0) {
+            // If no matching twin name is found, return a 404 response
+            return res.status(404).json({ error: 'Twin name not found for the provided twinversion_id' });
+        }
+
+        // Return the twin name in the response
+        res.json({ twin_name: result.rows[0].twin_name });
+    } catch (error) {
+        console.error('Error fetching twin name from the database:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
 const filePath = path.join(__dirname, 'download_icon_clicked.txt');
 console.log(filePath);
 
